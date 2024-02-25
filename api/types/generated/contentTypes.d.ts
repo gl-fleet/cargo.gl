@@ -385,6 +385,7 @@ export interface ApiItemItem extends Schema.CollectionType {
     >;
     price: Attribute.BigInteger & Attribute.DefaultTo<'0'>;
     signed: Attribute.Boolean & Attribute.DefaultTo<false>;
+    image: Attribute.Media;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     publishedAt: Attribute.DateTime;

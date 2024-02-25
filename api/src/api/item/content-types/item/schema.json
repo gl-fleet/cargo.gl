@@ -36,6 +36,13 @@
     "signed": {
       "type": "boolean",
       "default": false
+    },
+    "image": {
+      "allowedTypes": [
+        "images"
+      ],
+      "type": "media",
+      "multiple": true
     }
   }
 }

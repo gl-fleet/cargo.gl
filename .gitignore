@@ -93,6 +93,7 @@ out
 .strapi
 build
 dist
+uploads
 
 # Gatsby files
 .cache/
