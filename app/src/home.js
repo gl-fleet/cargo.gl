@@ -28,9 +28,10 @@ const layoutStyle = {
 const headerStyle = {
     display: 'block',
     position: 'relative',
-    background: '#1677ff',
+    background: '#009688',
     height: 'auto',
     textAlign: 'center',
+    padding: '16px 16px',
 }
 
 const contentStyle = {
@@ -136,7 +137,7 @@ export default () => {
         <Layout style={layoutStyle} theme="light">
 
             <Header style={headerStyle}>
-                <Image src="/logo512.png" style={{ maxWidth: 320 }} />
+                <Image src="/gobi.png" style={{ maxWidth: 320 }} />
                 <Flex gap="small" vertical style={{ position: 'absolute', top: 16, right: 16 }}>
                     <Flex wrap="wrap" gap="small">
                         <Button href="#" type="default" shape="circle" icon={<FacebookOutlined />} />
@@ -151,6 +152,7 @@ export default () => {
 
                     <Col span={24}>
                         <Search
+                            className='bg-green'
                             style={{ maxWidth: 480 }}
                             placeholder="Enter [Phone Number] or [Tracking ID] ..."
                             enterButton="Search"
