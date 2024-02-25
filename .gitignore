@@ -89,6 +89,9 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
+.tmp
+.strapi
+build
 dist
 
 # Gatsby files
