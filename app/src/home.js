@@ -1,7 +1,9 @@
 import { Layout, Flex, Typography, Image, Button, Input, Tag, theme } from 'antd'
 import { Table, Grid, Card, Col, Row } from 'antd'
 import { FacebookOutlined, InstagramOutlined, MailOutlined } from '@ant-design/icons'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+
+import { Connection } from 'unet/web'
 
 const { Header, Footer, Sider, Content } = Layout
 const { Paragraph, Text } = Typography
@@ -54,6 +56,12 @@ export default () => {
 
     const screens = useBreakpoint()
     const { token } = useToken()
+
+    useEffect(() => {
+
+        const cargo = new Connection({ name: 'cargo', proxy: 'localhost:4080' })
+
+    }, [])
 
     const onSearch = (value) => {
 

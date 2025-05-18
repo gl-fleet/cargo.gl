@@ -1,0 +1,23 @@
+{
+  "name": "cargo_app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "ubin watch_app --yarn",
+    "build": "ubin build_app --bundle --minify --sourcemap --port 5050",
+    "serve": "node ./dist/run.js",
+    "clear": "rm -rf ./dist ./node_modules"
+  },
+  "dependencies": {
+    "ubin": "upacks/ubin#1.2.1",
+    "unet": "upacks/unet#1.5.4",
+    "utils": "upacks/utils#1.2.2",
+    "uweb": "upacks/uweb#1.2.9",
+    "styled-components": "^6.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5"
+  }
+}
