@@ -10,11 +10,14 @@
     "clear": "rm -rf ./dist ./node_modules"
   },
   "dependencies": {
+    "react-fast-compare": "^3.2.2",
+    "react-spreadsheet": "^0.10.1",
+    "scheduler": "^0.27.0",
+    "styled-components": "^6.0.8",
     "ubin": "upacks/ubin#1.2.1",
     "unet": "upacks/unet#1.5.4",
     "utils": "upacks/utils#1.2.2",
-    "uweb": "upacks/uweb#1.2.9",
-    "styled-components": "^6.0.8"
+    "uweb": "upacks/uweb#1.2.9"
   },
   "devDependencies": {
     "@types/react": "^19.1.4",

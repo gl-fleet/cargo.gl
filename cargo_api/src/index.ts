@@ -1,8 +1,8 @@
-import { Host } from 'unet'
-import { Safe, Now, log, env, isDev } from 'utils'
-
 import { Sequelize, DataTypes, Op } from 'sequelize'
+import { Safe, Now, log, env } from 'utils'
 import { faker } from '@faker-js/faker'
+import jwt from 'jsonwebtoken'
+import { Host } from 'unet'
 import 'dotenv/config'
 
 Safe(async () => {
@@ -10,6 +10,18 @@ Safe(async () => {
     const API = new Host({ name: 'cargo', port: 5051, timeout: 25000, redis: false })
 
     API.on('me', (req) => req.connection.remoteAddress)
+    API.on('login', (req) => {
+
+        console.log(req.query)
+
+        const { user = '*', pass = '*' } = req.query
+
+        console.log(user)
+        console.log(pass)
+
+        return {}
+
+    })
 
     if (env.DB_NAME && env.DB_USER && env.DB_PASS) {
 
@@ -18,12 +30,7 @@ Safe(async () => {
             dialect: 'postgres',
             host: env.DB_HOST,
             pool: { max: 16, min: 4, acquire: 30000, idle: 15000 },
-            logging: (sql) => {
-
-                /* console.log('***')
-                console.log(sql) */
-
-            },
+            logging: (sql) => { /* console.log(sql) */ },
 
         })
 
@@ -46,6 +53,9 @@ Safe(async () => {
         API.on('items', async (req) => {
 
             const { text = '*' } = req.query
+
+            // if (text.length < 8) throw new Error("Enter a Phone number or Code!")
+
             const result = await items.findAll({
                 where: {
                     [Op.or]: [
@@ -54,6 +64,9 @@ Safe(async () => {
                     ]
                 }
             })
+
+            console.log(`Query: ${text} / Length: ${text.length} / Items: ${result.length}`)
+
             return result
 
         })
@@ -67,7 +80,7 @@ Safe(async () => {
 
             await items.upsert({
                 code: faker.internet.mac(),
-                phone: faker.phone.number(),
+                phone: i % 10 === 0 ? 86566666 : faker.phone.number(),
                 state: faker.system.mimeType(),
                 description: faker.music.album(),
                 price: faker.number.int({ min: 5000, max: 100000 }),

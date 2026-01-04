@@ -1,10 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Layout, Flex, Typography, Image, Button, Input, Form, Table, Grid, Card, Col, Row, InputNumber, Popconfirm } from 'antd'
-import { FacebookOutlined, InstagramOutlined, MailOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Layout, Flex, Typography, Image, Button, Input, Tag, theme, Table, Grid, Card, Col, Row } from 'antd'
+import { FacebookOutlined, InstagramOutlined, MailOutlined } from '@ant-design/icons'
 import { createGlobalStyle } from 'styled-components'
 
 import { React, Render } from 'uweb'
 import { Connection } from 'unet/web'
+
+import Spreadsheet from "react-spreadsheet"
+import isEqual from 'react-fast-compare'
 
 const { Header, Footer, Sider, Content } = Layout
 const { Paragraph, Text } = Typography
@@ -16,11 +19,27 @@ const Style = createGlobalStyle`
     #root > .ant-float-btn-group {
         display: none !important;
     }
-
-    .ant-form-item-row,
-    .ant-form-item-control-input {
-        height: 100%;
-        background: #fff;
+    .Spreadsheet {
+        width: 100%;
+        margin-bottom: 16px;
+    }
+    .Spreadsheet table {
+        width: 100%;
+    }
+    .Spreadsheet tr > th:nth-child(1) {
+        width: 5%;
+    }
+    .Spreadsheet tr > th:nth-child(2) {
+        width: 15%;
+    }
+    .Spreadsheet tr > th:nth-child(3) {
+        width: 10%;
+    }
+    .Spreadsheet tr > th:nth-child(6) {
+        width: 10%;
+    }
+    .Spreadsheet table th {
+        font-weight: 600;
     }
 
 `
@@ -62,66 +81,23 @@ const footerStyle: any = {
     padding: 16,
 }
 
-const EditableCell: any = ({
-    editing,
-    dataIndex,
-    title,
-    inputType,
-    record,
-    index,
-    children,
-    ...restProps
-}: any) => {
-
-    const border: any = { border: 'none', borderLeft: '2px dashed blue', borderRadius: 0 }
-    const inputNode = inputType === 'number' ? <InputNumber style={border} /> : <Input style={border} />
-    return (
-        <td {...restProps}>
-            {editing ? (<>
-                {children}
-                <Form.Item
-                    name={dataIndex}
-                    style={{ margin: 0, position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}
-                >{inputNode}</Form.Item>
-            </>
-            ) : (children)}
-        </td>
-    )
-}
+const def = Array(10).fill(Array(5))
 
 export default ({ isDarkMode }: { isDarkMode: boolean }) => {
-
-    const [form] = Form.useForm()
-    const [editingKey, setEditingKey] = useState('');
-    const isEditing = (record: any) => record.id === editingKey
 
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('***')
     const [items, setItems] = useState<any>([])
     const [desc, setDesc] = useState<any>('***')
+
+    const columnLabels: any = ["Code", "Phone", "State", "Description", "Price"]
+    const [rowLabels, setRowLabels]: any = useState([])
+
+    const prev = useRef(def)
+    const [data, setData]: any = useState(def)
+
     const screens: any = useBreakpoint()
     const cargo = useMemo(() => new Connection({ name: 'cargo', proxy: 'http://localhost:5051' }), [])
-
-    const handleSave = (record: any) => {
-        console.log('Save', record)
-    }
-
-    const edit = (record: any) => {
-        console.log('Edit', record)
-        form.setFieldsValue({ code: '', phone: '', state: '', description: '', price: 0, ...record })
-        setEditingKey(record.id)
-    }
-
-    const handleAdd = () => {
-        const newData: any = { code: '', phone: '', state: '', description: '', price: 0 }
-        console.log('Add', newData)
-        setItems([...items, newData])
-    }
-
-    const cancel = () => {
-        console.log('Cancel', editingKey)
-        setEditingKey('')
-    }
 
     const onSearch = (value: any) => {
 
@@ -138,16 +114,28 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
                 setMessage(`Found ${ls.length} items`)
 
                 let price = 0
+                let sps = []
+                let ids = []
 
                 for (const i of ls) {
 
                     console.log(i)
                     price += i.price
+                    ids.push(i.id)
+                    sps.push([
+                        { value: i.code },
+                        { value: i.phone },
+                        { value: i.state },
+                        { value: i.description },
+                        { value: i.price },
+                    ])
 
                 }
 
                 const mnt = new Intl.NumberFormat("mn-MN", { style: "currency", currency: "MNT" }).format(price).replace('MNT', '₮')
                 setDesc(<span>A total of <b>{ls.length}</b> items, with a shipping cost of <b>{mnt}</b></span>)
+                setData([...sps, ...def])
+                setRowLabels([...ids])
 
             }
 
@@ -171,80 +159,37 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
         {
             title: 'Code',
             dataIndex: 'code',
-            editable: true,
         },
         {
             title: 'Phone',
             dataIndex: 'phone',
             hidden: detect <= 2,
-            editable: true,
         },
         {
             title: 'State',
             dataIndex: 'state',
             hidden: detect <= 2,
-            editable: true,
         },
         {
             title: 'Description',
             dataIndex: 'description',
-            editable: true,
         },
         {
             title: 'Price',
             dataIndex: 'price',
-            editable: true,
             render: (_: any) => new Intl.NumberFormat("mn-MN", { style: "currency", currency: "MNT" }).format(_).replace('MNT', '₮')
-        },
-        {
-            title: 'Actions',
-            render: (_: any, record: any) => {
-
-                const editable = isEditing(record)
-                return editable ? (
-                    <center>
-                        <Typography.Link onClick={() => { /* save(record.key) */ }} style={{ marginInlineEnd: 8 }}>
-                            <SaveOutlined />
-                        </Typography.Link>
-                        <Typography.Link onClick={cancel}>
-                            <CloseOutlined />
-                        </Typography.Link>
-                    </center>
-                ) : (
-                    <center>
-                        <Typography.Link disabled={editingKey !== ''} onClick={() => edit(record)} style={{ marginInlineEnd: 8 }}>
-                            <EditOutlined />
-                        </Typography.Link>
-                        <Popconfirm title="Sure to delete?" onConfirm={() => { }}>
-                            <a><DeleteOutlined style={{ fontSize: 13 }} /></a>
-                        </Popconfirm>
-                    </center>
-                )
-
-            }
         },
     ].filter(item => !item.hidden)
 
-    const mergedColumns: any = columns.map((col) => {
-
-        if (!col.editable) return col
-
-        return {
-            ...col,
-            onCell: (record: any) => ({
-                record,
-                inputType: col.dataIndex === 'age' ? 'number' : 'text',
-                dataIndex: col.dataIndex,
-                title: col.title,
-                editing: isEditing(record),
-            }),
-        }
-
-    })
-
     const onDataChange = (e: any) => {
 
-        console.log(e)
+        if (!isEqual(prev.current, e)) {
+
+            console.log(e)
+            prev.current = e
+            setData([...e])
+
+        }
 
     }
 
@@ -285,7 +230,7 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
                             placeholder="Enter Phone or Code ..."
                             enterButton="Search"
                             size="large"
-                            allowClear={true}
+                            allowClear
                             onSearch={(value) => onSearch(value)}
                         />
                         <span style={{ display: message ? 'block' : 'none', paddingTop: 12 }}>{message}</span>
@@ -293,20 +238,23 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
                     <Col span={24}>
 
-                        <Form form={form} component={false}>
-                            <Table
-                                loading={loading}
-                                bordered
-                                size={'small'}
-                                rowKey={'id'}
-                                rowClassName="editable-row"
-                                columns={mergedColumns}
-                                components={{ body: { cell: EditableCell } }}
-                                dataSource={items}
-                                pagination={false}
-                                footer={() => <div>{desc}</div>}
-                            />
-                        </Form>
+                        <Spreadsheet
+                            data={data}
+                            onChange={onDataChange}
+                            columnLabels={columnLabels}
+                            rowLabels={rowLabels}
+                        />
+
+                        <Table
+                            loading={loading}
+                            bordered
+                            size={'small'}
+                            rowKey={'tracking_id'}
+                            columns={columns}
+                            dataSource={items}
+                            pagination={false}
+                            footer={() => <div>{desc}</div>}
+                        />
 
                     </Col>
 
