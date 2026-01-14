@@ -1,5 +1,5 @@
-import { Sequelize, DataTypes, Op } from 'sequelize'
-import { Safe, Now, log, env } from 'utils'
+import { Sequelize, DataTypes, Op, UUIDV4 } from 'sequelize'
+import { ushort, Safe, Now, log, env } from 'utils'
 import { faker } from '@faker-js/faker'
 import jwt from 'jsonwebtoken'
 import { Host } from 'unet'
@@ -30,11 +30,11 @@ Safe(async () => {
             dialect: 'postgres',
             host: env.DB_HOST,
             pool: { max: 16, min: 4, acquire: 30000, idle: 15000 },
-            logging: (sql) => { /* console.log(sql) */ },
+            logging: false // (q, o: any) => { console.log(o.where) },
 
         })
 
-        /** Items **/
+        /** Table creation **/
         const items = sequelize.define("items", {
 
             id: { primaryKey: true, type: DataTypes.INTEGER, autoIncrement: true },
@@ -50,29 +50,82 @@ Safe(async () => {
 
         }, { indexes: [{ unique: false, fields: ['code', 'phone', 'updatedAt'] }] })
 
+        /** Table creation **/
         API.on('items', async (req) => {
 
-            const { text = '*' } = req.query
+            const uid = ushort()
+            const [{ method }, { text = '*' }, start] = [req, req.query, Date.now()]
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '0.0.0.0'
+            const { id, type } = req.body
+            const qm = method === 'GET' ? 'select' : type === 'delete' ? 'delete' : typeof id === 'number' ? 'update' : 'create'
+            const al = `[${method}-${uid}-${ip}-${qm}]:`
+            console.log(`${al} --- ${method} ---`)
 
-            // if (text.length < 8) throw new Error("Enter a Phone number or Code!")
+            try {
 
-            const result = await items.findAll({
-                where: {
-                    [Op.or]: [
-                        { code: { [Op.like]: `${text}%` } },
-                        { phone: { [Op.like]: `${text}%` } }
-                    ]
+                if (qm === 'select') {
+
+                    return await items.findAll({
+                        where: {
+                            [Op.or]: [
+                                { code: { [Op.like]: `${text}%` } },
+                                { phone: { [Op.like]: `${text}%` } }
+                            ]
+                        },
+                    })
+
                 }
-            })
 
-            console.log(`Query: ${text} / Length: ${text.length} / Items: ${result.length}`)
+                if (qm === 'create') {
 
-            return result
+                    const res = await items.create({
+                        ...req.body,
+                        id: null,
+                    })
+
+                    console.log(res)
+
+                    return `${req.body.id} is created!`
+
+                }
+
+                if (qm === 'update') {
+
+                    const res = await items.upsert(req.body)
+
+                    console.log(res)
+
+                    return `${req.body.id} is updated!`
+
+                }
+
+                if (qm === 'delete') {
+
+                    const res = await items.destroy({
+                        where: {
+                            id: req.body.id
+                        }
+                    })
+
+                    console.log(res)
+
+                    return `${req.body.id} is deleted!`
+
+                }
+
+            } catch (e: any) {
+
+                console.log(`${al} failed:${e.message} ${Date.now() - start}ms`)
+
+            } finally {
+
+                console.log(`${al} finished ${Date.now() - start}ms`)
+
+            }
 
         })
 
-        /** Calculation **/
-        const is_dev = env.MODE === 'development'
+        /** Table sync **/
 
         await sequelize.sync({ force: true, alter: true })
 

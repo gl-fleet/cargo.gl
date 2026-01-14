@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Layout, Flex, Typography, Image, Button, Input, Form, Table, Grid, Card, Col, Row, InputNumber, Popconfirm } from 'antd'
+import { Layout, Flex, Typography, Image, Button, Input, Form, Table, Grid, Card, Col, Row, InputNumber, Popconfirm, Badge } from 'antd'
 import { FacebookOutlined, InstagramOutlined, MailOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons'
 import { createGlobalStyle } from 'styled-components'
 
@@ -97,13 +97,42 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('***')
-    const [items, setItems] = useState<any>([])
     const [desc, setDesc] = useState<any>('***')
+    const [items, setItems] = useState<any>([])
     const screens: any = useBreakpoint()
+
     const cargo = useMemo(() => new Connection({ name: 'cargo', proxy: 'http://localhost:5051' }), [])
 
-    const handleSave = (record: any) => {
-        console.log('Save', record)
+    const handleSave = async (record: any, type = 'upsert') => {
+
+        try {
+
+            const row = (await form.validateFields())
+            const newData = [...items]
+            const index = newData.findIndex((item) => record.id === item.id)
+
+            console.log('Save', record, row)
+
+            cargo.push('items', { ...record, ...row, type }, (err, data) => {
+                console.log(err, data)
+                setEditingKey('')
+            })
+
+            if (index > -1) {
+                const item = newData[index]
+                newData.splice(index, 1, { ...item, ...row })
+                setItems(newData)
+                setEditingKey('')
+            } else {
+                newData.push(row)
+                setItems(newData)
+                setEditingKey('')
+            }
+
+        } catch (errInfo) {
+            console.log('Validate Failed:', errInfo)
+        }
+
     }
 
     const edit = (record: any) => {
@@ -113,9 +142,9 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
     }
 
     const handleAdd = () => {
-        const newData: any = { code: '', phone: '', state: '', description: '', price: 0 }
+        const newData: any = { id: `#${Date.now()}`, code: '', phone: '', state: '', description: '', price: 0 }
         console.log('Add', newData)
-        setItems([...items, newData])
+        setItems([newData, ...items])
     }
 
     const cancel = () => {
@@ -203,7 +232,7 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
                 const editable = isEditing(record)
                 return editable ? (
                     <center>
-                        <Typography.Link onClick={() => { /* save(record.key) */ }} style={{ marginInlineEnd: 8 }}>
+                        <Typography.Link onClick={() => handleSave(record, 'upsert')} style={{ marginInlineEnd: 8 }}>
                             <SaveOutlined />
                         </Typography.Link>
                         <Typography.Link onClick={cancel}>
@@ -215,7 +244,7 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
                         <Typography.Link disabled={editingKey !== ''} onClick={() => edit(record)} style={{ marginInlineEnd: 8 }}>
                             <EditOutlined />
                         </Typography.Link>
-                        <Popconfirm title="Sure to delete?" onConfirm={() => { }}>
+                        <Popconfirm title="Sure to delete?" onConfirm={() => handleSave(record, 'delete')}>
                             <a><DeleteOutlined style={{ fontSize: 13 }} /></a>
                         </Popconfirm>
                     </center>
@@ -293,20 +322,22 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
                     <Col span={24}>
 
-                        <Form form={form} component={false}>
-                            <Table
-                                loading={loading}
-                                bordered
-                                size={'small'}
-                                rowKey={'id'}
-                                rowClassName="editable-row"
-                                columns={mergedColumns}
-                                components={{ body: { cell: EditableCell } }}
-                                dataSource={items}
-                                pagination={false}
-                                footer={() => <div>{desc}</div>}
-                            />
-                        </Form>
+                        <Badge.Ribbon style={{ marginTop: -18 }} text={<a onClick={() => handleAdd()}>Add</a>}>
+                            <Form form={form} component={false}>
+                                <Table
+                                    loading={loading}
+                                    bordered
+                                    size={'small'}
+                                    rowKey={'id'}
+                                    rowClassName="editable-row"
+                                    columns={mergedColumns}
+                                    components={{ body: { cell: EditableCell } }}
+                                    dataSource={items}
+                                    pagination={false}
+                                    footer={() => <div>{desc}</div>}
+                                />
+                            </Form>
+                        </Badge.Ribbon>
 
                     </Col>
 
