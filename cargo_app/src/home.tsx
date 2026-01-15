@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { Layout, Flex, Typography, Image, Button, Input, Form, Table, Grid, Card, Col, Row, InputNumber, Popconfirm, Badge } from 'antd'
-import { FacebookOutlined, InstagramOutlined, MailOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Space, Layout, Flex, Typography, Image, Button, Input, Form, Table, Grid, Card, Col, Row, InputNumber, Popconfirm, Badge, Modal } from 'antd'
+import { FacebookOutlined, InstagramOutlined, MailOutlined, EditOutlined, SaveOutlined, CloseOutlined, DeleteOutlined, UserOutlined, PlusCircleOutlined } from '@ant-design/icons'
 import { createGlobalStyle } from 'styled-components'
 
 import { React, Render } from 'uweb'
@@ -91,6 +91,13 @@ const EditableCell: any = ({
 
 export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
+    // const isAdming = prompt('Are you admin?')
+
+    const [admin, setAdmin] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [pass, setPass] = useState('')
+    const [loginError, setLoginError] = useState('')
+
     const [form] = Form.useForm()
     const [editingKey, setEditingKey] = useState('');
     const isEditing = (record: any) => record.id === editingKey
@@ -101,7 +108,7 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
     const [items, setItems] = useState<any>([])
     const screens: any = useBreakpoint()
 
-    const cargo = useMemo(() => new Connection({ name: 'cargo', proxy: 'http://localhost:5051' }), [])
+    const cargo = useMemo(() => new Connection({ name: 'cargo', proxy: 'http://139.59.115.158:5051', token: localStorage.getItem('cargo_token') ?? '' }), [])
 
     const handleSave = async (record: any, type = 'upsert') => {
 
@@ -114,8 +121,11 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
             console.log('Save', record, row)
 
             cargo.push('items', { ...record, ...row, type }, (err, data) => {
+
                 console.log(err, data)
                 setEditingKey('')
+                if (!err) onSearch('')
+
             })
 
             if (index > -1) {
@@ -158,6 +168,8 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
         const text = value.replace(/[^a-z0-9]/gi, '')
 
+        console.log(`Search: ${text}`)
+
         cargo.get('items', { text }).then((e: any) => {
 
             if (Array.isArray(e)) {
@@ -178,15 +190,46 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
                 const mnt = new Intl.NumberFormat("mn-MN", { style: "currency", currency: "MNT" }).format(price).replace('MNT', '₮')
                 setDesc(<span>A total of <b>{ls.length}</b> items, with a shipping cost of <b>{mnt}</b></span>)
 
-            }
+            } else if (typeof e === 'string') setMessage(e)
 
         }).catch((e) => {
 
+            console.log(e)
             setMessage(e?.response?.data ?? '')
 
         }).finally(() => setLoading(false))
 
     }
+
+    const onLogin = () => {
+
+        cargo.set('login', { user: 'admin', pass }).then((token: any) => {
+
+            console.log(token)
+            localStorage.setItem('cargo_token', token)
+            setLoginError('')
+            location.reload()
+
+        }).catch((({ response }) => {
+
+            console.log(response);
+            setLoginError(response.data);
+
+        }))
+
+    }
+
+    useEffect(() => {
+
+        const token = localStorage.getItem('cargo_token')
+        token && cargo.set('me', { token }).then((token: any) => {
+            setAdmin(true)
+            onSearch('')
+        }).catch(({ response }) => {
+            localStorage.setItem('cargo_token', '')
+        })
+
+    }, [])
 
     const detect = useMemo(() => {
 
@@ -225,34 +268,35 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
             editable: true,
             render: (_: any) => new Intl.NumberFormat("mn-MN", { style: "currency", currency: "MNT" }).format(_).replace('MNT', '₮')
         },
-        {
-            title: 'Actions',
-            render: (_: any, record: any) => {
+        admin ?
+            {
+                title: 'Actions',
+                render: (_: any, record: any) => {
 
-                const editable = isEditing(record)
-                return editable ? (
-                    <center>
-                        <Typography.Link onClick={() => handleSave(record, 'upsert')} style={{ marginInlineEnd: 8 }}>
-                            <SaveOutlined />
-                        </Typography.Link>
-                        <Typography.Link onClick={cancel}>
-                            <CloseOutlined />
-                        </Typography.Link>
-                    </center>
-                ) : (
-                    <center>
-                        <Typography.Link disabled={editingKey !== ''} onClick={() => edit(record)} style={{ marginInlineEnd: 8 }}>
-                            <EditOutlined />
-                        </Typography.Link>
-                        <Popconfirm title="Sure to delete?" onConfirm={() => handleSave(record, 'delete')}>
-                            <a><DeleteOutlined style={{ fontSize: 13 }} /></a>
-                        </Popconfirm>
-                    </center>
-                )
+                    const editable = isEditing(record)
+                    return editable ? (
+                        <center>
+                            <Typography.Link onClick={() => handleSave(record, 'upsert')} style={{ marginInlineEnd: 8 }}>
+                                <SaveOutlined />
+                            </Typography.Link>
+                            <Typography.Link onClick={cancel}>
+                                <CloseOutlined />
+                            </Typography.Link>
+                        </center>
+                    ) : (
+                        <center>
+                            <Typography.Link disabled={editingKey !== ''} onClick={() => edit(record)} style={{ marginInlineEnd: 8 }}>
+                                <EditOutlined />
+                            </Typography.Link>
+                            <Popconfirm title="Sure to delete?" onConfirm={() => handleSave(record, 'delete')}>
+                                <a><DeleteOutlined style={{ fontSize: 13 }} /></a>
+                            </Popconfirm>
+                        </center>
+                    )
 
-            }
-        },
-    ].filter(item => !item.hidden)
+                }
+            } : { hidden: true },
+    ].filter(item => !item?.hidden)
 
     const mergedColumns: any = columns.map((col) => {
 
@@ -271,21 +315,22 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
     })
 
-    const onDataChange = (e: any) => {
-
-        console.log(e)
-
-    }
-
-    const onSubmit = (e: any) => {
-
-        console.log(e)
-
-    }
-
     return <Flex gap="middle" wrap="wrap" style={{ backgroundColor: '#f5f5f5' }}>
 
         <Style />
+
+        <Modal
+            title="Login"
+            closable={{ 'aria-label': 'Custom Close Button' }}
+            open={isModalOpen}
+            onCancel={() => setIsModalOpen(false)}
+            footer={null}
+        >
+            <Space.Compact style={{ width: '100%' }}>
+                <Input status={loginError ? "error" : ""} type="password" placeholder='Enter password' onChange={(e) => setPass(e.target.value)} onPressEnter={() => onLogin()} />
+                <Button type={"primary"} onClick={() => onLogin()}>Login</Button>
+            </Space.Compact>
+        </Modal>
 
         <Layout style={layoutStyle}>
 
@@ -322,7 +367,11 @@ export default ({ isDarkMode }: { isDarkMode: boolean }) => {
 
                     <Col span={24}>
 
-                        <Badge.Ribbon style={{ marginTop: -18 }} text={<a onClick={() => handleAdd()}>Add</a>}>
+                        <Badge.Ribbon
+                            style={{ marginTop: -18 }}
+                            text={admin ? <a onClick={() => handleAdd()} style={{ padding: 4, color: "#fff" }}><PlusCircleOutlined /></a>
+                                : <a onClick={() => setIsModalOpen(true)} style={{ padding: 4, color: "#fff" }}><UserOutlined /></a>}
+                        >
                             <Form form={form} component={false}>
                                 <Table
                                     loading={loading}

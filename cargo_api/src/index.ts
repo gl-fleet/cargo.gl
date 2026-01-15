@@ -9,17 +9,48 @@ Safe(async () => {
 
     const API = new Host({ name: 'cargo', port: 5051, timeout: 25000, redis: false })
 
-    API.on('me', (req) => req.connection.remoteAddress)
+    const isValid = (token: string) => {
+
+        try {
+            jwt.verify(token, env.CL_KEY ?? '*')
+            return true
+        } catch (err) {
+            return false
+        }
+
+    }
+
+    API.on('me', (req) => {
+
+        const { token = '*' } = req.body
+
+        console.log(`[me] Token: ${token}`)
+        if (isValid(token)) return true
+        else throw new Error('Invalid token!')
+
+    })
+
     API.on('login', (req) => {
 
-        console.log(req.query)
+        const { user = '*', pass = '*' } = req.body
 
-        const { user = '*', pass = '*' } = req.query
+        console.log(`[login] User: ${user} Pass: ${pass}`)
+        console.log(`[env] Env User: ${env.CL_USER} Env Pass: ${env.CL_PASS}`)
 
-        console.log(user)
-        console.log(pass)
+        if (env.CL_USER === user && env.CL_PASS === pass) {
 
-        return {}
+            console.log('Generating token...')
+            const token = jwt.sign({ user }, env.CL_KEY ?? '*', { expiresIn: '14d' })
+            console.log(`[login] Token: ${token}`)
+            return token
+
+        }
+        else {
+
+            console.log(`[login] no match for User: ${user} Pass: ${pass}`)
+            throw new Error('Invalid credentials!')
+
+        }
 
     })
 
@@ -63,6 +94,10 @@ Safe(async () => {
 
             try {
 
+                const admin = isValid((req.headers.authorization || '*').replace('Bearer ', ''))
+                if (['create', 'update', 'delete'].includes(qm) && !admin) throw new Error('Unauthorized access!')
+                if (!admin && text.length < 8) return 'Search text too short!'
+
                 if (qm === 'select') {
 
                     return await items.findAll({
@@ -72,6 +107,7 @@ Safe(async () => {
                                 { phone: { [Op.like]: `${text}%` } }
                             ]
                         },
+                        order: [['id', 'DESC']],
                     })
 
                 }
@@ -116,6 +152,7 @@ Safe(async () => {
             } catch (e: any) {
 
                 console.log(`${al} failed:${e.message} ${Date.now() - start}ms`)
+                return `${e.message} ${Date.now() - start}ms`
 
             } finally {
 
@@ -127,9 +164,9 @@ Safe(async () => {
 
         /** Table sync **/
 
-        await sequelize.sync({ force: true, alter: true })
+        await sequelize.sync({ force: false, alter: true })
 
-        for (let i = 0; i < 100; i++) {
+        /* for (let i = 0; i < 100; i++) {
 
             await items.upsert({
                 code: faker.internet.mac(),
@@ -139,7 +176,7 @@ Safe(async () => {
                 price: faker.number.int({ min: 5000, max: 100000 }),
             })
 
-        }
+        } */
 
 
     } else log.error(`Please check database credentials!`)
